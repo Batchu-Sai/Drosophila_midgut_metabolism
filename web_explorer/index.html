@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drosophila Midgut scRNA-seq (Zipper et al., eLife 2022)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #212529; }
+    .header-bar { background-color: #212529; color: #fff; padding: 1.25rem 1.5rem; border-bottom: 1px solid #dee2e6; }
+    .card { border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
+    .nav-tabs .nav-link { color: #495057; font-weight: 500; }
+    .nav-tabs .nav-link.active { color: #0d6efd; font-weight: 600; }
+    .plot-box { min-height: 440px; }
+    .gene-chip {
+      display: inline-flex; align-items: center; background: #e9ecef; color: #212529;
+      padding: 0.2rem 0.55rem; border-radius: 4px; font-size: 0.85rem;
+      margin: 0.15rem; cursor: pointer; border: 1px solid #ced4da;
+    }
+    .gene-chip span { margin-left: 0.4rem; font-weight: bold; color: #6c757d; }
+    .fig-card img { max-height: 360px; object-fit: contain; width: 100%; background: #fff; padding: 0.25rem; border: 1px solid #dee2e6; }
+    pre.code-block { background: #f8f9fa; border: 1px solid #dee2e6; padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; margin-bottom: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <h5 class="mb-1">Drosophila Adult Midgut scRNA-seq Clustering &amp; Trajectory Data</h5>
+        <div class="small text-light opacity-75">
+          Zipper L, Batchu S, Kaya N, Antonello ZA, Reiff T (2022). <em>eLife</em> 11:e78093.
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/tag/v1.0.0" target="_blank" class="btn btn-sm btn-primary">
+          Release v1.0.0 (.rds Files)
+        </a>
+        <a href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism" target="_blank" class="btn btn-sm btn-outline-light">
+          GitHub Repository
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid py-3">
+  <div id="loading-bar" class="alert alert-secondary py-2 mb-3 small">
+    Loading single-cell coordinates and expression matrix...
+  </div>
+
+  <ul class="nav nav-tabs mb-3" id="atlasTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-downloads" type="button">Data &amp; .rds Downloads</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-isc" type="button" onclick="setTimeout(renderISC, 50)">ISC/EB tSNE &amp; Co-Expression (n = 651)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-traj" type="button" onclick="setTimeout(renderTraj, 50)">qISC &rarr; pISC &rarr; EB Trajectory (n = 480)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-whole" type="button" onclick="setTimeout(renderWhole, 50)">Whole-Midgut tSNE (n = 5,631)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-table" type="button">Subtype Mean Expression Table</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-gallery" type="button">Publication Figures &amp; Heatmaps</button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- TAB 1: DOWNLOADS & OVERVIEW -->
+    <div class="tab-pane fade show active" id="tab-downloads">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold mb-2">R / Bioconductor Single-Cell Objects (.rds) and Expression Matrices</h6>
+            <p class="small text-muted mb-3">
+              In the original analysis scripts, relabeling Cluster <code>"2"</code> to <code>dEC</code> (differentiating enterocytes) and merging the <code>qISC</code> (n = 104), <code>pISC</code> (n = 102), and <code>EB</code> (n = 274) progenitor annotations occurred at script runtime. Both pre-annotated objects and the original unmodified files are provided below.
+            </p>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered align-middle small">
+                <thead class="table-light">
+                  <tr>
+                    <th>File</th>
+                    <th>Class &amp; Dimensions</th>
+                    <th>Description</th>
+                    <th>Download</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Zipper2022_Midgut_Seurat_Annotated.rds</code></td>
+                    <td><code>Seurat</code><br/>10,605 &times; 16,986 (RNA) / 10,141 (integrated)</td>
+                    <td>Whole-midgut Seurat object (<code>RNA</code>, <code>SCT</code>, <code>integrated</code>; <code>pca</code>, <code>umap</code>) with <code>zipper2022_broad_celltype</code> (Cluster <code>"2"</code> &rarr; <code>"dEC"</code>) and <code>zipper2022_celltype</code> (<code>qISC</code>, <code>pISC</code>, <code>EB</code>, <code>dEC</code>, <code>aEC</code>, <code>mEC</code>, <code>pEC</code>, <code>EE</code>).</td>
+                    <td><a class="btn btn-sm btn-primary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/Zipper2022_Midgut_Seurat_Annotated.rds">Download (152 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>Zipper2022_ISC_EB_Imputed_Seurat_tSNE.rds</code></td>
+                    <td><code>Seurat</code><br/>651 &times; 16,827</td>
+                    <td>Imputed <code>ISC/EB</code> Seurat object with <code>tsne</code> reduction, <code>slingshot_Identity</code> (<code>qISC</code>, <code>pISC</code>, <code>EB</code>), and <code>marker_subtype</code>.</td>
+                    <td><a class="btn btn-sm btn-primary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/Zipper2022_ISC_EB_Imputed_Seurat_tSNE.rds">Download (23 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>Zipper2022_Midgut_Imputed_SCE_Annotated.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>10,605 &times; 16,827</td>
+                    <td>Imputed and deconvolution-normalized SCE object with <code>zipper2022_celltype</code> plus <code>all_genes_tSNE</code> and <code>metabolic_tSNE</code> coordinates.</td>
+                    <td><a class="btn btn-sm btn-primary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/Zipper2022_Midgut_Imputed_SCE_Annotated.rds">Download (336 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>trajectory-sce_ISC_EB.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>480 &times; 10,141</td>
+                    <td>Dissected progenitor Slingshot trajectory object: <code>qISC</code> (104) &rarr; <code>pISC</code> (102) &rarr; <code>EB</code> (274).</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/trajectory-sce_ISC_EB.rds">Download (632 KB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>slingshot-trajectory_ISC_EB.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>480 &times; 10,141</td>
+                    <td>Slingshot curves and pseudotime object for <code>qISC &rarr; pISC &rarr; EB</code>.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/slingshot-trajectory_ISC_EB.rds">Download (870 KB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>trajectory-sce_diff.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>5,913 &times; 10,141</td>
+                    <td>Whole-midgut 4-lineage differentiation trajectory object (<code>ISC/EB &rarr; dEC &rarr; pEC/mEC/aEC/EE</code>).</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/trajectory-sce_diff.rds">Download (67 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>slingshot-trajectory_diff.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>5,913 &times; 10,141</td>
+                    <td>Companion Slingshot pseudotime and 4 lineage curves for whole-midgut differentiation.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/slingshot-trajectory_diff.rds">Download (74 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>Deconvolution_tpm.rds</code></td>
+                    <td><code>matrix</code><br/>16,827 &times; 10,605</td>
+                    <td><code>scran</code> deconvolution-normalized TPM matrix for KEGG metabolic pathway activity scoring.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/Deconvolution_tpm.rds">Download (98 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>selected_impute_ISC_EB_sce.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>651 &times; 16,827</td>
+                    <td>Original imputed <code>ISC/EB</code> SCE object prior to subtype merge.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/selected_impute_ISC_EB_sce.rds">Download (24 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>integrated.rds</code></td>
+                    <td><code>Seurat</code><br/>10,605 &times; 16,986 (RNA) / 10,141 (integrated)</td>
+                    <td>Original Seurat v3 integrated object prior to relabeling Cluster <code>"2"</code> &rarr; <code>"dEC"</code>.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/integrated.rds">Download (152 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>selected_sce.rds</code></td>
+                    <td><code>SingleCellExperiment</code><br/>10,605 &times; 16,827</td>
+                    <td>Original whole-midgut SCE object prior to imputation.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/selected_sce.rds">Download (110 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>tsne_final_ISC_EB.csv</code></td>
+                    <td><code>CSV</code><br/>651 &times; 16,829</td>
+                    <td>Imputed <code>ISC/EB</code> expression matrix and <code>tSNE_1, tSNE_2</code> coordinates.</td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/tsne_final_ISC_EB.csv">Download (56 MB)</a></td>
+                  </tr>
+                  <tr>
+                    <td><code>Zipper2022_Scripts_Figures_Shiny_Package.zip</code></td>
+                    <td><code>ZIP</code></td>
+                    <td>Complete archive of R scripts, <code>reproduce_figures.R</code>, Shiny <code>app.R</code>, metadata CSVs, <code>Methods.docx</code>, and SVG/JPEG figures.</td>
+                    <td><a class="btn btn-sm btn-dark" href="https://github.com/Batchu-Sai/Drosophila_midgut_metabolism/releases/download/v1.0.0/Zipper2022_Scripts_Figures_Shiny_Package.zip">Download Archive</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card p-3 mb-3">
+            <h6 class="fw-bold mb-2">Clustering Summary (vs. Hung et al. 2020, GSE120537)</h6>
+            <ol class="small text-muted mb-0">
+              <li class="mb-2">
+                <strong>Differentiating Enterocytes (<code>dEC</code>, Cluster <code>"2"</code>):</strong><br/>
+                Cluster <code>"2"</code> (806 cells in <code>integrated.rds</code>; 653 cells in <code>selected_impute_sce.rds</code>) was unannotated in Hung et al. (2020). Metabolic gene clustering and Slingshot lineage reconstruction identified Cluster <code>"2"</code> as differentiating enterocytes (<code>dEC</code>) linking <code>ISC/EB</code> progenitors to <code>aEC</code>, <code>mEC</code>, and <code>pEC</code>.
+              </li>
+              <li>
+                <strong>Progenitor Dissection (<code>qISC</code>, <code>pISC</code>, <code>EB</code>):</strong><br/>
+                Using <code>scImpute</code> dropout imputation and <code>scran</code> deconvolution normalization on the 651 <code>ISC/EB</code> cells, progenitors were resolved into:
+                <ul>
+                  <li><code>qISC</code> (quiescent ISCs, n = 104): <code>esg &gt; 0, Dl &lt; 1, klu &lt; 1</code></li>
+                  <li><code>pISC</code> (proliferating ISCs, n = 102): <code>Dl &ge; 1, klu &lt; 1</code></li>
+                  <li><code>EB</code> (enteroblasts, n = 274): <code>Dl &lt; 1, klu &ge; 1</code></li>
+                </ul>
+              </li>
+            </ol>
+          </div>
+
+          <div class="card p-3">
+            <h6 class="fw-bold mb-2">Usage in R</h6>
+            <div class="small text-muted mb-1">Run the Shiny app (all 16,827 genes):</div>
+            <pre class="code-block">shiny::runGitHub("Drosophila_midgut_metabolism", "Batchu-Sai")</pre>
+            <div class="small text-muted mb-1">Load annotated Seurat objects:</div>
+            <pre class="code-block mb-0">library(Seurat)
+
+midgut &lt;- readRDS("Zipper2022_Midgut_Seurat_Annotated.rds")
+DimPlot(midgut, group.by = "zipper2022_celltype", label = TRUE)
+
+isc_eb &lt;- readRDS("Zipper2022_ISC_EB_Imputed_Seurat_tSNE.rds")
+FeaturePlot(isc_eb, features = c("esg", "Dl", "klu", "whd"), reduction = "tsne")</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ISC/EB TSNE & CO-EXPRESSION -->
+    <div class="tab-pane fade" id="tab-isc">
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="card p-3">
+            <h6 class="fw-bold">ISC/EB Imputed tSNE (651 cells)</h6>
+            <p class="small text-muted mb-2">Select up to 6 genes to plot single-gene expression or pairwise co-expression (`Gradient_Plots/Plots.R`, `Plots_2025.R`).</p>
+
+            <label class="form-label small fw-bold mb-1">Plot Mode:</label>
+            <select id="isc-mode" class="form-select form-select-sm mb-2" onchange="renderISC()">
+              <option value="single">Single-Gene Expression Grid</option>
+              <option value="coexpr">Single + Pairwise Co-Expression (Plots_2025.R)</option>
+              <option value="subtype">Progenitor Subtypes (qISC / pISC / EB)</option>
+            </select>
+
+            <label class="form-label small fw-bold mb-1">Add Gene:</label>
+            <div class="input-group input-group-sm mb-2">
+              <input type="text" id="gene-search" list="gene-datalist" class="form-control" placeholder="e.g. esg, Dl, klu, whd, NetA..." />
+              <button class="btn btn-secondary" type="button" onclick="addSelectedGene()">Add</button>
+            </div>
+            <datalist id="gene-datalist"></datalist>
+
+            <div class="mb-2">
+              <div class="small fw-bold mb-1">Selected Genes:</div>
+              <div id="active-genes-container"></div>
+            </div>
+
+            <label class="form-label small fw-bold mb-1">Co-Expression Quantile Threshold: <span id="q-val">0.30</span></label>
+            <input type="range" id="thresh-q" class="form-range mb-2" min="0" max="0.8" step="0.05" value="0.30" oninput="document.getElementById('q-val').innerText=this.value; renderISC();" />
+
+            <hr class="my-2"/>
+            <div class="small fw-bold mb-1">Gene Panels:</div>
+            <div class="d-grid gap-1">
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setGenes(['esg','Dl','klu','Eip75B','stg','pros'])">Progenitor Markers (esg, Dl, klu, Eip75B, stg, pros)</button>
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setGenes(['whd','yip2','Mtpalpha','CG4389','CG31075','CG3902'])">miR-277 &amp; Beta-Oxidation Targets</button>
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setGenes(['NetA','NetB','fra','unc-5','trio','elav'])">Netrin / Guidance Panel (Plots_2025.R)</button>
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setGenes(['E(spl)mbeta-HLH','E(spl)m3-HLH','E(spl)m7-HLH','E(spl)m8-HLH','N','Su(H)'])">Notch &amp; E(spl) Targets</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-9">
+          <div class="card p-3">
+            <div id="isc-plots-grid" class="row g-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SLINGSHOT TRAJECTORY -->
+    <div class="tab-pane fade" id="tab-traj">
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="card p-3">
+            <h6 class="fw-bold">Slingshot Trajectory: qISC &rarr; pISC &rarr; EB</h6>
+            <p class="small text-muted mb-2">480 progenitor cells ordered along Slingshot pseudotime (<code>qISC</code> n=104, <code>pISC</code> n=102, <code>EB</code> n=274).</p>
+            <label class="form-label small fw-bold mb-1">Add Gene:</label>
+            <div class="input-group input-group-sm mb-2">
+              <input type="text" id="traj-gene-search" list="gene-datalist" class="form-control" placeholder="e.g. esg, Dl, klu, whd..." />
+              <button class="btn btn-secondary" type="button" onclick="addTrajGene()">Add</button>
+            </div>
+            <div id="traj-genes-container" class="mb-2"></div>
+            <hr class="my-2"/>
+            <div class="d-grid gap-1">
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setTrajGenes(['esg','Dl','klu','Eip75B','stg','whd'])">Progenitor + FAO Panel</button>
+              <button class="btn btn-sm btn-outline-secondary text-start" onclick="setTrajGenes(['CG4389','CG31075','CG3902','yip2','whd','Mtpalpha'])">miR-277 Target Panel</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-9">
+          <div class="card p-3 mb-3">
+            <div id="traj-pca-plot" style="height: 360px;"></div>
+          </div>
+          <div class="card p-3">
+            <div id="traj-curves-grid" class="row g-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: WHOLE MIDGUT TSNE -->
+    <div class="tab-pane fade" id="tab-whole">
+      <div class="card p-3">
+        <div class="mb-2">
+          <h6 class="fw-bold mb-0">Whole-Midgut tSNE (5,631 Cells): All Genes vs. Metabolic Genes</h6>
+          <span class="small text-muted">Clusters: <code>ISC/EB</code>, <code>dEC</code> (Cluster 2), <code>aEC</code>, <code>mEC</code>, <code>pEC</code>, and <code>EE</code> (`TSNE_plots/Plots.R`).</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div id="whole-all-plot" style="height: 520px;"></div>
+          </div>
+          <div class="col-md-6">
+            <div id="whole-met-plot" style="height: 520px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: MEAN EXPRESSION TABLE -->
+    <div class="tab-pane fade" id="tab-table">
+      <div class="card p-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <div>
+            <h6 class="fw-bold mb-0">Progenitor Subtype Mean Expression (<code>qISC</code>, <code>pISC</code>, <code>EB</code>, All <code>ISC/EB</code>)</h6>
+            <span class="small text-muted">Imputed log-normalized expression across <code>qISC</code> (n=104), <code>pISC</code> (n=102), <code>EB</code> (n=274), and all <code>ISC/EB</code> (n=651).</span>
+          </div>
+          <div class="d-flex gap-2">
+            <input type="text" id="table-filter" class="form-control form-control-sm" style="width: 240px;" placeholder="Filter gene symbol..." oninput="renderTable()" />
+            <a href="assets/Zipper2022_ISC_EB_All_Genes_Mean_Expression.csv" download class="btn btn-sm btn-primary">Download All 16,827 Genes (CSV)</a>
+            <a href="assets/Zipper2022_ISC_EB_Key_Genes_Mean_Expression.csv" download class="btn btn-sm btn-outline-secondary">Download Key Panel (CSV)</a>
+          </div>
+        </div>
+        <div class="table-responsive" style="max-height: 620px; overflow-y: auto;">
+          <table class="table table-sm table-striped table-bordered small align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Gene</th>
+                <th>Mean qISC (n=104)</th>
+                <th>Mean pISC (n=102)</th>
+                <th>Mean EB (n=274)</th>
+                <th>Mean All ISC/EB (n=651)</th>
+                <th>% Expr qISC</th>
+                <th>% Expr pISC</th>
+                <th>% Expr EB</th>
+                <th>Plot</th>
+              </tr>
+            </thead>
+            <tbody id="expr-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: PUBLICATION FIGURES GALLERY -->
+    <div class="tab-pane fade" id="tab-gallery">
+      <div class="row g-3 fig-card">
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">Whole-Midgut Differentiation Trajectories (<code>ISC/EB &rarr; dEC &rarr; aEC/mEC/pEC/EE</code>)</h6>
+            <p class="small text-muted">Slingshot lineages bridging progenitors through Cluster 2 (<code>dEC</code>) and metabolic gene expression along pseudotime.</p>
+            <a href="assets/trajectory_plot.jpeg" target="_blank"><img src="assets/trajectory_plot.jpeg" alt="Whole Midgut Trajectory" /></a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">Dissected Progenitor Trajectory (<code>qISC &rarr; pISC &rarr; EB</code>)</h6>
+            <p class="small text-muted">Slingshot pseudotime trajectory of 480 progenitor cells and expression of fatty acid beta-oxidation / miR-277 target genes.</p>
+            <a href="assets/ISC_trajectory_plot.jpeg" target="_blank"><img src="assets/ISC_trajectory_plot.jpeg" alt="ISC Trajectory" /></a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">ISC/EB Progenitor Marker Blend (`Gradient_Plots/Plots.R`)</h6>
+            <p class="small text-muted">Blended expression of <code>klu</code> vs. <code>Dl</code> across 651 ISC/EB cells and <code>esg</code> vs. <code>pros</code> in <code>qISC</code>.</p>
+            <a href="assets/Gradient_plot.jpeg" target="_blank"><img src="assets/Gradient_plot.jpeg" alt="Gradient Plot" /></a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">Single &amp; Pairwise Co-Expression Grid (`Plots_2025.R`)</h6>
+            <p class="small text-muted">Co-expression grid on the 651-cell imputed ISC/EB tSNE embedding.</p>
+            <a href="assets/SingleAndCoexpr_Grid.svg" target="_blank"><img src="assets/SingleAndCoexpr_Grid.svg" alt="2025 Coexpression Grid" /></a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">KEGG Metabolic Pathway Heatmap: <code>qISC</code> vs. <code>pISC</code> vs. <code>EB</code></h6>
+            <p class="small text-muted">Metabolic pathway activity across quiescent ISCs, proliferating ISCs, and enteroblasts (`Dissection_Heatmaps.R`).</p>
+            <a href="assets/heatmap_qISC.jpeg" target="_blank"><img src="assets/heatmap_qISC.jpeg" alt="qISC pISC EB Heatmap" /></a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 h-100">
+            <h6 class="fw-bold">Combined Midgut Metabolic Pathway Heatmap (<code>qISC, pISC, EB, aEC, mEC, pEC</code>)</h6>
+            <p class="small text-muted">Metabolic pathway activity across progenitors and regional enterocytes.</p>
+            <a href="assets/heatmap_combined.jpeg" target="_blank"><img src="assets/heatmap_combined.jpeg" alt="Combined Heatmap" /></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let ATLAS = null;
+let activeGenes = ['esg', 'Dl', 'klu', 'Eip75B', 'stg', 'pros'];
+let trajGenes = ['esg', 'Dl', 'klu', 'whd', 'yip2', 'CG4389'];
+
+fetch('atlas_data.json')
+  .then(r => r.json())
+  .then(data => {
+    ATLAS = data;
+    document.getElementById('loading-bar').style.display = 'none';
+
+    const dl = document.getElementById('gene-datalist');
+    dl.innerHTML = ATLAS.genes.map(g => `<option value="${g}">`).join('');
+
+    updateGeneChips();
+    updateTrajChips();
+    renderTable();
+  })
+  .catch(err => {
+    document.getElementById('loading-bar').className = 'alert alert-danger py-2 mb-3 small';
+    document.getElementById('loading-bar').innerText = 'Error loading atlas_data.json: ' + err;
+  });
+
+function updateGeneChips() {
+  const c = document.getElementById('active-genes-container');
+  c.innerHTML = activeGenes.map(g =>
+    `<span class="gene-chip" onclick="removeGene('${g}')">${g} <span>&times;</span></span>`
+  ).join('');
+}
+
+function setGenes(list) {
+  if (!ATLAS) return;
+  activeGenes = list.filter(g => ATLAS.expr[g] !== undefined);
+  updateGeneChips();
+  renderISC();
+}
+
+function removeGene(g) {
+  activeGenes = activeGenes.filter(x => x !== g);
+  updateGeneChips();
+  renderISC();
+}
+
+function addSelectedGene() {
+  const inp = document.getElementById('gene-search');
+  const g = inp.value.trim();
+  if (!g || !ATLAS) return;
+  if (!ATLAS.expr[g]) {
+    alert(`Gene "${g}" is not in the pre-loaded subset. Download the full CSV/RDS or run app.R in R for all 16,827 genes.`);
+    return;
+  }
+  if (!activeGenes.includes(g)) {
+    if (activeGenes.length >= 6) activeGenes.shift();
+    activeGenes.push(g);
+  }
+  inp.value = '';
+  updateGeneChips();
+  renderISC();
+}
+
+function quantile(arr, q) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  return sorted[base + 1] !== undefined ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+}
+
+function renderISC() {
+  if (!ATLAS) return;
+  const mode = document.getElementById('isc-mode').value;
+  const grid = document.getElementById('isc-plots-grid');
+  grid.innerHTML = '';
+
+  const x = ATLAS.isc.x;
+  const y = ATLAS.isc.y;
+  const hoverBase = ATLAS.isc.cells.map((c, i) =>
+    `Cell: ${c}<br>Slingshot: ${ATLAS.isc.slingshot_id[i]}<br>Gate: ${ATLAS.isc.marker_sub[i]}`
+  );
+
+  if (mode === 'subtype') {
+    grid.innerHTML = `
+      <div class="col-md-6"><div id="isc-sub-1" class="plot-box"></div></div>
+      <div class="col-md-6"><div id="isc-sub-2" class="plot-box"></div></div>
+    `;
+    const groups1 = ['qISC', 'pISC', 'EB', 'ISC/EB_other'];
+    const colors1 = {'qISC':'#440154', 'pISC':'#21918c', 'EB':'#eab308', 'ISC/EB_other':'#cbd5e1'};
+    const traces1 = groups1.map(grp => {
+      const idx = ATLAS.isc.slingshot_id.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+      return {
+        x: idx.map(i => x[i]), y: idx.map(i => y[i]),
+        text: idx.map(i => hoverBase[i]),
+        mode: 'markers', type: 'scattergl', name: `${grp} (n=${idx.length})`,
+        marker: { size: 6.5, color: colors1[grp] }
+      };
+    });
+    Plotly.newPlot('isc-sub-1', traces1, {
+      title: 'Slingshot Identity (qISC / pISC / EB)',
+      xaxis: { title: 'tSNE 1' }, yaxis: { title: 'tSNE 2' },
+      margin: { t: 40, l: 45, r: 20, b: 40 }, legend: { orientation: 'h', y: -0.15 }
+    }, {responsive: true});
+
+    const groups2 = [...new Set(ATLAS.isc.marker_sub)];
+    const traces2 = groups2.map(grp => {
+      const idx = ATLAS.isc.marker_sub.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+      return {
+        x: idx.map(i => x[i]), y: idx.map(i => y[i]),
+        text: idx.map(i => hoverBase[i]),
+        mode: 'markers', type: 'scattergl', name: `${grp} (n=${idx.length})`,
+        marker: { size: 6.5 }
+      };
+    });
+    Plotly.newPlot('isc-sub-2', traces2, {
+      title: 'Marker Gate Classification (esg / Dl / klu)',
+      xaxis: { title: 'tSNE 1' }, yaxis: { title: 'tSNE 2' },
+      margin: { t: 40, l: 45, r: 20, b: 40 }, legend: { orientation: 'h', y: -0.15 }
+    }, {responsive: true});
+    return;
+  }
+
+  const plots = [];
+  activeGenes.forEach(g => {
+    plots.push({ type: 'single', g1: g });
+  });
+
+  if (mode === 'coexpr' && activeGenes.length >= 2) {
+    for (let i = 0; i < activeGenes.length; i++) {
+      for (let j = i + 1; j < activeGenes.length; j++) {
+        plots.push({ type: 'pair', g1: activeGenes[i], g2: activeGenes[j] });
+      }
+    }
+  }
+
+  const colClass = plots.length <= 2 ? 'col-md-6' : 'col-md-4';
+  plots.forEach((p, idx) => {
+    const col = document.createElement('div');
+    col.className = colClass;
+    col.innerHTML = `<div id="isc-p-${idx}" style="height: 330px;"></div>`;
+    grid.appendChild(col);
+  });
+
+  const qThresh = parseFloat(document.getElementById('thresh-q').value);
+
+  plots.forEach((p, idx) => {
+    const divId = `isc-p-${idx}`;
+    if (p.type === 'single') {
+      const vals = ATLAS.expr[p.g1];
+      Plotly.newPlot(divId, [{
+        x: x, y: y, mode: 'markers', type: 'scattergl',
+        text: vals.map((v, i) => `${hoverBase[i]}<br>${p.g1}: ${v}`),
+        marker: {
+          size: 5.5, color: vals, colorscale: 'Plasma', showscale: true,
+          colorbar: { thickness: 12, len: 0.75 }
+        }
+      }], {
+        title: { text: `<b>${p.g1}</b>`, font: { size: 13 } },
+        xaxis: { title: 'tSNE 1', showticklabels: false },
+        yaxis: { title: 'tSNE 2', showticklabels: false },
+        margin: { t: 35, l: 30, r: 20, b: 30 }
+      }, {responsive: true});
+    } else {
+      const v1 = ATLAS.expr[p.g1];
+      const v2 = ATLAS.expr[p.g2];
+      const t1 = quantile(v1, qThresh);
+      const t2 = quantile(v2, qThresh);
+      const bgIdx = [], fgIdx = [], fgVal = [];
+      for (let i = 0; i < v1.length; i++) {
+        if (v1[i] > t1 && v2[i] > t2) {
+          fgIdx.push(i);
+          fgVal.push(Math.round(Math.log1p(v1[i] * v2[i]) * 100) / 100);
+        } else {
+          bgIdx.push(i);
+        }
+      }
+      Plotly.newPlot(divId, [
+        {
+          x: bgIdx.map(i => x[i]), y: bgIdx.map(i => y[i]),
+          mode: 'markers', type: 'scattergl', name: 'Below threshold',
+          marker: { size: 4.5, color: '#cbd5e1', opacity: 0.45 }, hoverinfo: 'skip', showlegend: false
+        },
+        {
+          x: fgIdx.map(i => x[i]), y: fgIdx.map(i => y[i]),
+          text: fgIdx.map((i, k) => `${hoverBase[i]}<br>${p.g1}: ${v1[i]} | ${p.g2}: ${v2[i]}<br>log1p(prod): ${fgVal[k]}`),
+          mode: 'markers', type: 'scattergl', name: 'Co-expressing',
+          marker: { size: 6, color: fgVal, colorscale: 'Plasma', showscale: true, colorbar: { thickness: 12, len: 0.75 } },
+          showlegend: false
+        }
+      ], {
+        title: { text: `<b>${p.g1} + ${p.g2}</b> (n=${fgIdx.length})`, font: { size: 13 } },
+        xaxis: { title: 'tSNE 1', showticklabels: false },
+        yaxis: { title: 'tSNE 2', showticklabels: false },
+        margin: { t: 35, l: 30, r: 20, b: 30 }
+      }, {responsive: true});
+    }
+  });
+}
+
+function updateTrajChips() {
+  const c = document.getElementById('traj-genes-container');
+  c.innerHTML = trajGenes.map(g =>
+    `<span class="gene-chip" onclick="removeTrajGene('${g}')">${g} <span>&times;</span></span>`
+  ).join('');
+}
+
+function setTrajGenes(list) {
+  if (!ATLAS) return;
+  trajGenes = list.filter(g => ATLAS.expr[g] !== undefined);
+  updateTrajChips();
+  renderTraj();
+}
+
+function removeTrajGene(g) {
+  trajGenes = trajGenes.filter(x => x !== g);
+  updateTrajChips();
+  renderTraj();
+}
+
+function addTrajGene() {
+  const inp = document.getElementById('traj-gene-search');
+  const g = inp.value.trim();
+  if (!g || !ATLAS || !ATLAS.expr[g]) return;
+  if (!trajGenes.includes(g)) {
+    if (trajGenes.length >= 6) trajGenes.shift();
+    trajGenes.push(g);
+  }
+  inp.value = '';
+  updateTrajChips();
+  renderTraj();
+}
+
+function movingAverage(vals, windowSize = 35) {
+  return vals.map((_, idx) => {
+    const start = Math.max(0, idx - Math.floor(windowSize / 2));
+    const end = Math.min(vals.length, idx + Math.floor(windowSize / 2) + 1);
+    const slice = vals.slice(start, end);
+    return slice.reduce((a, b) => a + b, 0) / slice.length;
+  });
+}
+
+function renderTraj() {
+  if (!ATLAS) return;
+  const t = ATLAS.traj;
+  const colors = {'qISC':'#440154', 'pISC':'#21918c', 'EB':'#eab308'};
+  const tracesPCA = ['qISC', 'pISC', 'EB'].map(grp => {
+    const idx = t.identity.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+    return {
+      x: idx.map(i => t.pc1[i]), y: idx.map(i => t.pc2[i]),
+      text: idx.map(i => `Cell: ${t.cells[i]}<br>Subtype: ${grp}<br>Pseudotime: ${t.pseudotime[i]}`),
+      mode: 'markers', type: 'scattergl', name: `${grp} (n=${idx.length})`,
+      marker: { size: 7, color: colors[grp] }
+    };
+  });
+  Plotly.newPlot('traj-pca-plot', tracesPCA, {
+    title: 'Slingshot PCA Trajectory: qISC (104) → pISC (102) → EB (274)',
+    xaxis: { title: 'PC 1' }, yaxis: { title: 'PC 2' },
+    margin: { t: 40, l: 50, r: 20, b: 40 }
+  }, {responsive: true});
+
+  const grid = document.getElementById('traj-curves-grid');
+  grid.innerHTML = '';
+  trajGenes.forEach((g, idx) => {
+    const col = document.createElement('div');
+    col.className = 'col-md-4';
+    col.innerHTML = `<div id="traj-g-${idx}" style="height: 270px;"></div>`;
+    grid.appendChild(col);
+
+    const fullExpr = ATLAS.expr[g];
+    const yVals = t.isc_idx.map(ii => ii >= 0 ? fullExpr[ii] : 0);
+    const smoothY = movingAverage(yVals, 45);
+
+    const scatterTraces = ['qISC', 'pISC', 'EB'].map(grp => {
+      const ii = t.identity.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+      return {
+        x: ii.map(i => t.pseudotime[i]),
+        y: ii.map(i => yVals[i]),
+        mode: 'markers', type: 'scattergl', name: grp,
+        marker: { size: 4.5, color: colors[grp], opacity: 0.55 }, showlegend: false
+      };
+    });
+    scatterTraces.push({
+      x: t.pseudotime, y: smoothY,
+      mode: 'lines', name: 'Smoothed Trend',
+      line: { color: '#D55E00', width: 3 }, showlegend: false
+    });
+
+    Plotly.newPlot(`traj-g-${idx}`, scatterTraces, {
+      title: { text: `<b>${g}</b>`, font: { size: 13 } },
+      xaxis: { title: 'Pseudotime (qISC → pISC → EB)' },
+      yaxis: { title: 'logcount' },
+      margin: { t: 35, l: 45, r: 15, b: 40 }
+    }, {responsive: true});
+  });
+}
+
+function renderWhole() {
+  if (!ATLAS) return;
+  const w = ATLAS.whole;
+  const cbp2 = {
+    'ISC/EB': '#009E73', 'dEC': '#D55E00', 'aEC': '#293352',
+    'mEC': '#4E84C4', 'pEC': '#56B4E9', 'EE': '#CC79A7'
+  };
+  const groups = Object.keys(cbp2);
+
+  const tracesAll = groups.map(grp => {
+    const idx = w.group.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+    return {
+      x: idx.map(i => w.all_x[i]), y: idx.map(i => w.all_y[i]),
+      mode: 'markers', type: 'scattergl', name: `${grp} (n=${idx.length})`,
+      marker: { size: 4, color: cbp2[grp] }
+    };
+  });
+  Plotly.newPlot('whole-all-plot', tracesAll, {
+    title: 'All Genes tSNE (5,631 cells)',
+    xaxis: { title: 'tSNE 1' }, yaxis: { title: 'tSNE 2' },
+    margin: { t: 40, l: 45, r: 20, b: 40 }, legend: { orientation: 'h', y: -0.15 }
+  }, {responsive: true});
+
+  const tracesMet = groups.map(grp => {
+    const idx = w.group.map((v, i) => v === grp ? i : -1).filter(i => i >= 0);
+    return {
+      x: idx.map(i => w.met_x[i]), y: idx.map(i => w.met_y[i]),
+      mode: 'markers', type: 'scattergl', name: `${grp} (n=${idx.length})`,
+      marker: { size: 4, color: cbp2[grp] }
+    };
+  });
+  Plotly.newPlot('whole-met-plot', tracesMet, {
+    title: 'Metabolic Genes tSNE (5,631 cells)',
+    xaxis: { title: 'tSNE 1' }, yaxis: { title: 'tSNE 2' },
+    margin: { t: 40, l: 45, r: 20, b: 40 }, legend: { orientation: 'h', y: -0.15 }
+  }, {responsive: true});
+}
+
+function renderTable() {
+  if (!ATLAS) return;
+  const q = (document.getElementById('table-filter').value || '').toLowerCase();
+  const rows = ATLAS.table.filter(r => !q || r.Gene.toLowerCase().includes(q)).slice(0, 250);
+  const tbody = document.getElementById('expr-table-body');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="fw-bold">${r.Gene}</td>
+      <td>${r.Mean_qISC_n104}</td>
+      <td>${r.Mean_pISC_n102}</td>
+      <td>${r.Mean_EB_n274}</td>
+      <td>${r.Mean_All_ISC_EB_n651}</td>
+      <td>${r.Pct_Expr_qISC}%</td>
+      <td>${r.Pct_Expr_pISC}%</td>
+      <td>${r.Pct_Expr_EB}%</td>
+      <td>
+        ${ATLAS.expr[r.Gene] ? `<button class="btn btn-xs btn-outline-secondary py-0 px-2 small" onclick="plotGeneFromTable('${r.Gene}')">Plot</button>` : '<span class="text-muted small">CSV/RDS</span>'}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function plotGeneFromTable(g) {
+  if (!activeGenes.includes(g)) {
+    if (activeGenes.length >= 6) activeGenes.shift();
+    activeGenes.push(g);
+    updateGeneChips();
+  }
+  const tabBtn = document.querySelector('[data-bs-target="#tab-isc"]');
+  bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+  setTimeout(renderISC, 60);
+}
+</script>
+</body>
+</html>
